@@ -6,16 +6,20 @@
 # based on pre-organized karaoke filters
 
 from tkinter import *
-from tkinter import filedialog, N, E, S, W, X, Y
+from tkinter import filedialog
 from tkinter import font
+from tkinter import VERTICAL
 from functools import partial
 import sys
 import subprocess
 import os
+import fnmatch
+import re
 import random
 from datetime import datetime
 
 KARAOKE_DIR="/path/to/videos"
+FLAT_DIR=KARAOKE_DIR+"/flat/"
 
 # TODO:
 # * index all by-decade, by-genre, and by-mood subdirectories and allow
@@ -26,9 +30,17 @@ KARAOKE_DIR="/path/to/videos"
 
 choices = ['by-artist-first', 'by-artist-last', 'by-decade', 'by-genre', 'by-mood', 'by-title', 'flat']
 indexes = {'by-decade':[], 'by-genre':[], 'by-mood':[]}
+filtered_filenames = []
 
 for filter in indexes:
     indexes[filter].extend(os.listdir(KARAOKE_DIR+'/'+filter))
+
+def play_picked_file(*args):
+    indexes = picker.curselection()
+    if len(indexes) == 1:
+        index = int(indexes[0])
+        filename = filtered_filenames[index]
+        play_file(filename, prefix=FLAT_DIR)
 
 def play_file(filepath, prefix="", filter=""):
     errortxt=""
@@ -56,10 +68,23 @@ def browseFiles(subfolder):
         play_file(filepath, filter=subfolder)
 
 def pick_random():
-    filepath = random.choice(os.listdir(KARAOKE_DIR + "/flat"))
-    play_file(filepath, filter="random",prefix=KARAOKE_DIR+"/flat/")
+    filepath = random.choice(os.listdir(FLAT_DIR))
+    play_file(filepath, filter="random",prefix=FLAT_DIR)
+
+def run_search(event):
+    global filtered_filenames, filtered_filenames_list
+    # TODO: sanitize search_term
+    search_term = f"*{entry_search.get()}*.*"
+    rematch = fnmatch.translate(search_term)
+    filtered_filenames = [n for n in os.listdir(FLAT_DIR) if re.match(rematch, n, re.IGNORECASE)]
+    if filtered_filenames:
+        filtered_filenames_list.set(filtered_filenames)
+    else:
+        print(f"Could not find any matching files for {search_term}")
+        filtered_filenames_list=StringVar(value=[])
 
 window = Tk()
+filtered_filenames_list=StringVar(value=[])
 myfont = font.nametofont("TkDefaultFont")
 myfont.configure(size=32, weight=font.BOLD)
 window.title('File Explorer')
@@ -67,14 +92,10 @@ window.geometry("{0}x{1}+10+10".format(
                         window.winfo_screenwidth()-30, window.winfo_screenheight()-100))
 
 label_file_explorer = Label(window, 
-                            text = "KARAOKE PLAYER built with Tkinter",
-                            height = 4,
-                            fg = "light blue")
+                            text = "KARAOKE PLAYER built with Tkinter")
 
 label_currently_playing = Label(window, 
-                                text = "",
-                                height = 4,
-                                fg = "light blue")
+                                text = "")
 
 buttons={}
 for choice in choices:
@@ -90,10 +111,24 @@ buttons['SURPRISE ME'] = Button(window,
                                 text = f"SURPRISE ME",
                                 command = pick_random)
 
+label_search = Label(window,
+                     text = "SEARCH:")
+entry_search = Entry(window)
+entry_search.bind("<Return>", run_search)
+
 label_instructions = Label(window,
-                           text = "When video plays, press F for Full Screen, and Q to quit",
-                           height = 4,
-                           fg = "yellow")
+                           text = "When video plays, press F for Full Screen, and Q to quit")
+
+picker_label = Label(window,
+                     text = "File picker:")
+picker_frame = Frame(window)
+picker = Listbox(picker_frame,
+                 listvariable = filtered_filenames_list)
+picker.bind("<Double-1>", play_picked_file)
+picker_scrollbar = Scrollbar(picker_frame,
+                             orient=VERTICAL,
+                             command=picker.yview)
+picker['yscrollcommand'] = picker_scrollbar.set
 
 #
 # GUI layout
@@ -109,8 +144,16 @@ buttons['by-mood'].grid(column = 1, row = 3, padx = 3, pady = 3)
 buttons['by-title'].grid(column = 0, row = 4, padx = 3, pady = 3)
 buttons['flat'].grid(column = 1, row = 4, padx = 3, pady = 3)
 buttons['SURPRISE ME'].grid(columnspan = 2, row = 5, padx = 3, pady = 3)
-button_exit.grid(columnspan = 2, row = 6, padx = 3, pady = 3)
-label_instructions.grid(columnspan = 2, row = 7, sticky = "nesw")
+label_search.grid(column = 0, row = 6, padx = 3, pady = 3)
+entry_search.grid(column = 1, row = 6, padx = 3, pady = 3)
+picker_label.grid(columnspan = 2, row = 7, padx = 3, pady = 3)
+picker_frame.columnconfigure(0, weight=100)
+picker_frame.columnconfigure(1, weight=1)
+picker_frame.grid(columnspan = 2, row = 8, padx = 3, pady = 3, sticky = "nesw")
+picker.grid(column = 0, row = 0, padx = 3, pady = 3, sticky = "nesw")
+picker_scrollbar.grid(column = 1, row = 0, padx = 3, pady = 3, sticky = "ns")
+button_exit.grid(columnspan = 2, row = 9, padx = 3, pady = 3)
+label_instructions.grid(columnspan = 2, row = 10, sticky = "nesw")
 
 #
 # MAIN LOOP
