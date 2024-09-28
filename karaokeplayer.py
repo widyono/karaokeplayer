@@ -34,6 +34,8 @@ FLAT_DIR=KARAOKE_DIR+"/flat/"
 choices = ['by-artist-first', 'by-artist-last', 'by-decade', 'by-genre', 'by-mood', 'by-title', 'flat']
 indexes = {'by-decade':[], 'by-genre':[], 'by-mood':[]}
 filtered_filenames = []
+already_played = []
+picker_filter = ""
 
 for filter in indexes:
     indexes[filter].extend(os.listdir(KARAOKE_DIR+'/'+filter))
@@ -43,7 +45,7 @@ def play_picked_file(*args):
     if len(indexes) == 1:
         index = int(indexes[0])
         filename = filtered_filenames[index]
-        play_file(filename, prefix=FLAT_DIR)
+        play_file(filename, prefix=FLAT_DIR, filter=picker_filter)
 
 def play_file(filepath, prefix="", filter=""):
     errortxt=""
@@ -75,9 +77,11 @@ def pick_random():
     play_file(filepath, filter="random",prefix=FLAT_DIR)
 
 def run_search(event):
-    global filtered_filenames, filtered_filenames_list
+    global filtered_filenames, filtered_filenames_list, picker_filter
     # TODO: sanitize search_term
-    search_term = f"*{entry_search.get()}*.*"
+    search_term_entry = entry_search.get()
+    picker_filter = f"searched_for:{search_term_entry}"
+    search_term = f"*{search_term_entry}*.*"
     rematch = fnmatch.translate(search_term)
     filtered_filenames = [n for n in os.listdir(FLAT_DIR) if re.match(rematch, n, re.IGNORECASE)]
     if filtered_filenames:
