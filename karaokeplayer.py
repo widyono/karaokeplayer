@@ -19,7 +19,10 @@ import random
 from datetime import datetime
 
 KARAOKE_DIR="/path/to/videos"
+if os.environ.get("KARAOKE_DIR"):
+    KARAOKE_DIR=os.environ.get("KARAOKE_DIR")
 FLAT_DIR=KARAOKE_DIR+"/flat/"
+
 
 # TODO:
 # * index all by-decade, by-genre, and by-mood subdirectories and allow
