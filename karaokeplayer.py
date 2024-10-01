@@ -17,12 +17,19 @@ import fnmatch
 import re
 import random
 from datetime import datetime
+import argparse
+
+parser = argparse.ArgumentParser(description="KARAOKE PLAYER")
+parser.add_argument("-d","--directory", help="Directory containing Karaoke video structure")
+parser.add_argument('searchterm', type=str, nargs='?', help='Search term to filter Karaoke video listing')
+args = parser.parse_args()
 
 KARAOKE_DIR="/path/to/videos"
 if os.environ.get("KARAOKE_DIR"):
     KARAOKE_DIR=os.environ.get("KARAOKE_DIR")
+if args.directory:
+    KARAOKE_DIR=args.directory
 FLAT_DIR=KARAOKE_DIR+"/flat/"
-
 
 # TODO:
 # * index all by-decade, by-genre, and by-mood subdirectories and allow
@@ -76,10 +83,13 @@ def pick_random():
     filepath = random.choice(os.listdir(FLAT_DIR))
     play_file(filepath, filter="random",prefix=FLAT_DIR)
 
-def run_search(event):
+def run_search_event(event):
+    run_search_trigger()
+
+def run_search_trigger():
     global filtered_filenames, filtered_filenames_list, picker_filter
     # TODO: sanitize search_term
-    search_term_entry = entry_search.get()
+    search_term_entry = search_term_string.get()
     picker_filter = f"searched_for:{search_term_entry}"
     search_term = f"*{search_term_entry}*.*"
     rematch = fnmatch.translate(search_term)
@@ -92,6 +102,7 @@ def run_search(event):
 
 window = Tk()
 filtered_filenames_list=StringVar(value=[])
+search_term_string=StringVar(value="")
 myfont = font.nametofont("TkDefaultFont")
 myfont.configure(size=32, weight=font.BOLD)
 window.title('File Explorer')
@@ -120,8 +131,8 @@ buttons['SURPRISE ME'] = Button(window,
 
 label_search = Label(window,
                      text = "SEARCH:")
-entry_search = Entry(window)
-entry_search.bind("<Return>", run_search)
+entry_search = Entry(window, textvariable=search_term_string)
+entry_search.bind("<Return>", run_search_event)
 
 label_instructions = Label(window,
                            text = "When video plays, press F for Full Screen, and Q to quit")
@@ -161,6 +172,10 @@ picker.grid(column = 0, row = 0, padx = 3, pady = 3, sticky = "nesw")
 picker_scrollbar.grid(column = 1, row = 0, padx = 3, pady = 3, sticky = "ns")
 button_exit.grid(columnspan = 2, row = 9, padx = 3, pady = 3)
 label_instructions.grid(columnspan = 2, row = 10, sticky = "nesw")
+
+if args.searchterm:
+    search_term_string.set(args.searchterm)
+    run_search_trigger()
 
 #
 # MAIN LOOP
