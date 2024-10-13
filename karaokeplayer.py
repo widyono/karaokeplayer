@@ -4,6 +4,21 @@
 #
 # basic file explorer widget with preset starting folders
 # based on pre-organized karaoke filters
+#
+# environment variables:
+# KARAOKE_DIR   path to directory structure with karaoke video files
+#
+# structure:
+# KARAOKE_DIR/
+#   all/[:first_character:]/original_video_file
+#   by-artist-first/[:first_initial:]/symlinks_into_all
+#   by-artist-last/[:last_initial:]/symlinks_into_all
+#   by-decade/[:4_digit_decade:]/symlinks_into_all
+#   by-genre/[:genre_label:]/symlinks_into_all
+#   by-mood/[:mood_label:]/symlinks_into_all
+#   by-title/[:title_initial:]/symlinks_into_all
+#   flat/symlinks_into_all
+#   flat-lyrics/lyric_text_files
 
 from tkinter import *
 from tkinter import filedialog
@@ -30,6 +45,7 @@ if os.environ.get("KARAOKE_DIR"):
 if args.directory:
     KARAOKE_DIR=args.directory
 FLAT_DIR=KARAOKE_DIR+"/flat/"
+PLAYLIST_FILE="./playlist.txt"
 
 # TODO:
 # * index all by-decade, by-genre, and by-mood subdirectories and allow
@@ -41,7 +57,7 @@ FLAT_DIR=KARAOKE_DIR+"/flat/"
 choices = ['by-artist-first', 'by-artist-last', 'by-decade', 'by-genre', 'by-mood', 'by-title', 'flat']
 indexes = {'by-decade':[], 'by-genre':[], 'by-mood':[]}
 filtered_filenames = []
-already_played = []
+session_history = {}
 picker_filter = ""
 
 for filter in indexes:
@@ -56,18 +72,20 @@ def play_picked_file(*args):
 
 def play_file(filepath, prefix="", filter=""):
     errortxt=""
+    basepath=os.path.basename(filepath)
     try:
-        label_currently_playing.configure(text = "Currently playing:\n" + os.path.basename(filepath))
+        label_currently_playing.configure(text = "Currently playing:\n" + basepath)
         window.update()
         # OSX: open: -W = wait until app exits, -n = force new instance, -a iina = use IINA application
         subprocess.check_call(["open", "-W", "-n", "-a", "iina", prefix + filepath])
     except ChildProcessError as err:
-        label_currently_playing.configure(text = f"ERROR PLAYING:\n{os.path.basename(filepath)}\n{err}")
+        label_currently_playing.configure(text = f"ERROR PLAYING:\n{basepath}\n{err}")
         errortxt=",\"ERROR:"+err+"\""
     else:
-        label_currently_playing.configure(text = "Last played:\n" + os.path.basename(filepath))
+        label_currently_playing.configure(text = "Last played:\n" + basepath)
     finally:
-        with open("playlist.txt", "a") as myfile:
+        session_history[basepath]=True
+        with open(PLAYLIST_FILE, "a") as myfile:
             logpath=prefix+filepath
             logpath=logpath[len(KARAOKE_DIR)+1:]
             myfile.write(f"\"{datetime.today().strftime('%Y%m%dT%H%M%S')}\",\"{filter}\",\"{logpath}\"{errortxt}\n")
@@ -176,6 +194,9 @@ label_instructions.grid(columnspan = 2, row = 10, sticky = "nesw")
 if args.searchterm:
     search_term_string.set(args.searchterm)
     run_search_trigger()
+
+with open(PLAYLIST_FILE, "a") as myfile:
+    myfile.write(f"===================================NEW=SESSION=\"{datetime.today().strftime('%Y%m%dT%H%M%S')}\"\n")
 
 #
 # MAIN LOOP
