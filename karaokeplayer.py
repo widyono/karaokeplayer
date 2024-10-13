@@ -36,6 +36,7 @@ import argparse
 
 parser = argparse.ArgumentParser(description="KARAOKE PLAYER")
 parser.add_argument("-d","--directory", help="Directory containing Karaoke video structure")
+parser.add_argument("-u","--unique", action="store_true", help="Enforce playing anything only once during a single session")
 parser.add_argument('searchterm', type=str, nargs='?', help='Search term to filter Karaoke video listing')
 args = parser.parse_args()
 
@@ -73,6 +74,11 @@ def play_picked_file(*args):
 def play_file(filepath, prefix="", filter=""):
     errortxt=""
     basepath=os.path.basename(filepath)
+    if args.unique and basepath in session_history:
+        label_currently_playing.configure(text = f"ENFORCING UNIQUE PLAYS, ALREADY PLAYED THIS SESSION:\n{basepath}")
+        with open(PLAYLIST_FILE, "a") as myfile:
+            myfile.write(f"\"{datetime.today().strftime('%Y%m%dT%H%M%S')}\",\"{filter}\",\"{basepath}\",\"ERROR:NOT UNIQUE\"\n")
+        return
     try:
         label_currently_playing.configure(text = "Currently playing:\n" + basepath)
         window.update()
@@ -86,9 +92,9 @@ def play_file(filepath, prefix="", filter=""):
     finally:
         session_history[basepath]=True
         with open(PLAYLIST_FILE, "a") as myfile:
-            logpath=prefix+filepath
-            logpath=logpath[len(KARAOKE_DIR)+1:]
-            myfile.write(f"\"{datetime.today().strftime('%Y%m%dT%H%M%S')}\",\"{filter}\",\"{logpath}\"{errortxt}\n")
+            #logpath=prefix+filepath
+            #logpath=logpath[len(KARAOKE_DIR)+1:]
+            myfile.write(f"\"{datetime.today().strftime('%Y%m%dT%H%M%S')}\",\"{filter}\",\"{basepath}\"{errortxt}\n")
 
 def browseFiles(subfolder):
     filepath = filedialog.askopenfilename(initialdir = KARAOKE_DIR + "/" + subfolder,
@@ -99,7 +105,7 @@ def browseFiles(subfolder):
 
 def pick_random():
     filepath = random.choice(os.listdir(FLAT_DIR))
-    play_file(filepath, filter="random",prefix=FLAT_DIR)
+    play_file(filepath, filter="random", prefix=FLAT_DIR)
 
 def run_search_event(event):
     run_search_trigger()
@@ -115,8 +121,8 @@ def run_search_trigger():
     if filtered_filenames:
         filtered_filenames_list.set(filtered_filenames)
     else:
-        print(f"Could not find any matching files for {search_term}")
-        filtered_filenames_list=StringVar(value=[])
+        label_currently_playing.configure(text = "ERROR, COULD NOT FIND:\n" + search_term)
+        filtered_filenames_list.set([])
 
 window = Tk()
 filtered_filenames_list=StringVar(value=[])
