@@ -41,8 +41,11 @@ parser.add_argument('searchterm', type=str, nargs='?', help='Search term to filt
 args = parser.parse_args()
 
 KARAOKE_DIR="/path/to/videos"
-if os.environ.get("KARAOKE_DIR"):
-    KARAOKE_DIR=os.environ.get("KARAOKE_DIR")
+KARAOKE_FONT="TkDefaultFont"
+KARAOKE_TEXT_SIZE=32
+for varname in ["KARAOKE_DIR", "KARAOKE_FONT", "KARAOKE_TEXT_SIZE"]:
+    if os.environ.get(varname):
+        globals()[varname] = os.environ.get(varname)
 if args.directory:
     KARAOKE_DIR=args.directory
 FLAT_DIR=KARAOKE_DIR+"/flat/"
@@ -127,8 +130,8 @@ def run_search_trigger():
 window = Tk()
 filtered_filenames_list=StringVar(value=[])
 search_term_string=StringVar(value="")
-myfont = font.nametofont("TkDefaultFont")
-myfont.configure(size=32, weight=font.BOLD)
+myfont = font.nametofont(KARAOKE_FONT)
+myfont.configure(size=KARAOKE_TEXT_SIZE, weight=font.BOLD)
 window.title('File Explorer')
 window.geometry("{0}x{1}+10+10".format(
                         window.winfo_screenwidth()-30, window.winfo_screenheight()-100))
