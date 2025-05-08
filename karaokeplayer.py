@@ -2,6 +2,8 @@
 
 # karaokeplayer.py
 #
+# https://github.com/widyono/karaokeplayer
+#
 # basic file explorer widget with preset starting folders
 # based on pre-organized karaoke filters
 #
