@@ -22,10 +22,7 @@
 #   flat/symlinks_into_all
 #   flat-lyrics/lyric_text_files
 
-from tkinter import *
-from tkinter import filedialog
-from tkinter import font
-from tkinter import VERTICAL
+from tkinter import Tk, filedialog, font, VERTICAL, StringVar, Scrollbar, Listbox, Frame, Label, Entry, Button
 from functools import partial
 import sys
 import subprocess
@@ -155,7 +152,7 @@ button_exit = Button(window,
                      command = sys.exit) 
 
 buttons['SURPRISE ME'] = Button(window,
-                                text = f"SURPRISE ME",
+                                text = "SURPRISE ME",
                                 command = pick_random)
 
 label_search = Label(window,
