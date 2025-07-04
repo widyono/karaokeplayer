@@ -58,28 +58,35 @@ PLAYLIST_FILE="./playlist.txt"
 # * add text search bar to search lyrics
 
 choices = ['by-artist-first', 'by-artist-last', 'by-decade', 'by-genre', 'by-mood', 'by-title', 'flat']
-indexes = {'by-decade':[], 'by-genre':[], 'by-mood':[]}
 filtered_filenames = []
 session_history = {}
 picker_filter = ""
+filetrees = {}
 
-for filter in indexes:
-    indexes[filter].extend(os.listdir(KARAOKE_DIR+'/'+filter))
+for choice in choices:
+    filetrees[choice] = []
+    for root, dirs, files in os.walk(f"{KARAOKE_DIR}/{choice}"):
+        dirs.sort()
+        for file in sorted(files):
+            if file[0] == '.':
+                continue
+            filetrees[choice].append((root,file))
 
 def play_picked_file(*args):
     indexes = picker.curselection()
     if len(indexes) == 1:
         index = int(indexes[0])
-        filename = filtered_filenames[index]
-        play_file(filename, prefix=FLAT_DIR, filter=picker_filter)
+        filetuple = filtered_filenames[index]
+        filename = filetuple[0] + os.sep + filetuple[1]
+        play_file(filename, prefix="", picker_filter=picker_filter)
 
-def play_file(filepath, prefix="", filter=""):
+def play_file(filepath, prefix="", picker_filter=""):
     errortxt=""
     basepath=os.path.basename(filepath)
     if args.unique and basepath in session_history:
         label_currently_playing.configure(text = f"ENFORCING UNIQUE PLAYS, ALREADY PLAYED THIS SESSION:\n{basepath}")
         with open(PLAYLIST_FILE, "a") as myfile:
-            myfile.write(f"\"{datetime.today().strftime('%Y%m%dT%H%M%S')}\",\"{filter}\",\"{basepath}\",\"ERROR:NOT UNIQUE\"\n")
+            myfile.write(f"\"{datetime.today().strftime('%Y%m%dT%H%M%S')}\",\"{picker_filter}\",\"{basepath}\",\"ERROR:NOT UNIQUE\"\n")
         return
     try:
         label_currently_playing.configure(text = "Currently playing:\n" + basepath)
@@ -96,18 +103,18 @@ def play_file(filepath, prefix="", filter=""):
         with open(PLAYLIST_FILE, "a") as myfile:
             #logpath=prefix+filepath
             #logpath=logpath[len(KARAOKE_DIR)+1:]
-            myfile.write(f"\"{datetime.today().strftime('%Y%m%dT%H%M%S')}\",\"{filter}\",\"{basepath}\"{errortxt}\n")
-
-def browseFiles(subfolder):
-    filepath = filedialog.askopenfilename(initialdir = KARAOKE_DIR + "/" + subfolder,
-                                        title = "Select a File",
-                                        filetypes = (("all files", "*.*"),))
-    if filepath:
-        play_file(filepath, filter=subfolder)
+            myfile.write(f"\"{datetime.today().strftime('%Y%m%dT%H%M%S')}\",\"{picker_filter}\",\"{basepath}\"{errortxt}\n")
 
 def pick_random():
     filepath = random.choice(os.listdir(FLAT_DIR))
-    play_file(filepath, filter="random", prefix=FLAT_DIR)
+    play_file(filepath, picker_filter="random", prefix=FLAT_DIR)
+
+def run_browse_trigger(filter):
+    global filtered_filenames, filtered_filenames_list, picker_filter
+    picker_filter = f"browse:{filter}"
+    filtered_filenames = filetrees[filter]
+    # only display basename of each file path tuple
+    filtered_filenames_list.set([file[1] for file in filtered_filenames])
 
 def run_search_event(event):
     run_search_trigger()
@@ -119,9 +126,9 @@ def run_search_trigger():
     picker_filter = f"searched_for:{search_term_entry}"
     search_term = f"*{search_term_entry}*.*"
     rematch = fnmatch.translate(search_term)
-    filtered_filenames = [n for n in os.listdir(FLAT_DIR) if re.match(rematch, n, re.IGNORECASE)]
+    filtered_filenames = [(FLAT_DIR, n) for n in os.listdir(FLAT_DIR) if re.match(rematch, n, re.IGNORECASE)]
     if filtered_filenames:
-        filtered_filenames_list.set(filtered_filenames)
+        filtered_filenames_list.set([file[1] for file in filtered_filenames])
     else:
         label_currently_playing.configure(text = "ERROR, COULD NOT FIND:\n" + search_term)
         filtered_filenames_list.set([])
@@ -145,7 +152,7 @@ buttons={}
 for choice in choices:
     buttons[choice] = Button(window,
                              text = f"Browse {choice}",
-                             command = partial(browseFiles, choice)) 
+                             command = partial(run_browse_trigger, choice)) 
 
 button_exit = Button(window,
                      text = "Exit",
