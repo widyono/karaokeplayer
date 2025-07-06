@@ -12,15 +12,14 @@
 #
 # structure:
 # KARAOKE_DIR/
-#   all/[:first_character:]/original_video_file
-#   by-artist-first/[:first_initial:]/symlinks_into_all
-#   by-artist-last/[:last_initial:]/symlinks_into_all
-#   by-decade/[:4_digit_decade:]/symlinks_into_all
-#   by-genre/[:genre_label:]/symlinks_into_all
-#   by-mood/[:mood_label:]/symlinks_into_all
-#   by-title/[:title_initial:]/symlinks_into_all
-#   flat/symlinks_into_all
-#   flat-lyrics/lyric_text_files
+#   all/[:first_character:]/original_video_file         (original filename from download)
+#   by-artist-first/[:first_initial:]/symlinks_into_all (symlink named First Last - Title)
+#   by-artist-last/[:last_initial:]/symlinks_into_all   (symlink named Last,First - Title)
+#   by-decade/[:4_digit_decade:]/symlinks_into_all      (symlink named Title - First Last)
+#   by-genre/[:genre_label:]/symlinks_into_all          (symlink named Title - First Last)
+#   by-mood/[:mood_label:]/symlinks_into_all            (symlink named Title - First Last)
+#   by-title/[:title_initial:]/symlinks_into_all        (symlink named Title - First Last)
+#   lyrics/[:first_character:]/original_filename_text_lyrics
 
 from tkinter import Tk, filedialog, font, VERTICAL, StringVar, Scrollbar, Listbox, Frame, Label, Entry, Button
 from functools import partial
@@ -39,34 +38,41 @@ parser.add_argument("-u","--unique", action="store_true", help="Enforce playing 
 parser.add_argument('searchterm', type=str, nargs='?', help='Search term to filter Karaoke video listing')
 args = parser.parse_args()
 
-KARAOKE_DIR="/path/to/videos"
-KARAOKE_FONT="TkDefaultFont"
-KARAOKE_TEXT_SIZE=32
-for varname in ["KARAOKE_DIR", "KARAOKE_FONT", "KARAOKE_TEXT_SIZE"]:
+KARAOKE_DIR=os.path.dirname(sys.argv[0])
+KARAOKE_DEFAULT_FONT="TkDefaultFont"
+KARAOKE_FIXED_FONT="TkFixedFont"
+KARAOKE_DEFAULT_TEXT_SIZE=32
+for varname in ["KARAOKE_DIR", "KARAOKE_DEFAULT_FONT", "KARAOKE_DEFAULT_TEXT_SIZE"]:
     if os.environ.get(varname):
         globals()[varname] = os.environ.get(varname)
 if args.directory:
     KARAOKE_DIR=args.directory
-FLAT_DIR=KARAOKE_DIR+"/flat/"
+TITLE_DIR=KARAOKE_DIR+"/by-title/"
 PLAYLIST_FILE="./playlist.txt"
 
 # TODO:
-# * index all by-decade, by-genre, and by-mood subdirectories and allow
-#   "SURPRISE ME BY GENRE" selection
-# * add text search bar to search filenames in flat/
+# * index by-decade, by-genre, and by-mood top level directories
+#   enabling "SURPRISE ME BY GENRE / DECADE / MOOD" feature
 # * index lyrics to all songs and map to filenames
-# * add text search bar to search lyrics
+#   enabling text search bar for searching by lyrics
 
-choices = ['by-artist-first', 'by-artist-last', 'by-decade', 'by-genre', 'by-mood', 'by-title', 'flat']
+choices = ['by-artist-first', 'by-artist-last', 'by-decade', 'by-genre', 'by-mood', 'by-title']
 filtered_filenames = []
 session_history = {}
 picker_filter = ""
 filetrees = {}
+maxwidth = {}
 
 for choice in choices:
     filetrees[choice] = []
     for root, dirs, files in os.walk(f"{KARAOKE_DIR}/{choice}"):
         dirs.sort()
+        if not any(n in choice for n in ["by-title", "by-artist-first", "by-artist-last"]):
+            if not choice in maxwidth:
+                if dirs:
+                    maxwidth[choice] = len(max(dirs, key=len))
+                else:
+                    maxwidth[choice] = 0
         for file in sorted(files):
             if file[0] == '.':
                 continue
@@ -76,45 +82,52 @@ def play_picked_file(*args):
     indexes = picker.curselection()
     if len(indexes) == 1:
         index = int(indexes[0])
-        filetuple = filtered_filenames[index]
-        filename = filetuple[0] + os.sep + filetuple[1]
+        file_tuple = filtered_filenames[index]
+        filename = file_tuple[0] + os.sep + file_tuple[1]
         play_file(filename, prefix="", picker_filter=picker_filter)
 
 def play_file(filepath, prefix="", picker_filter=""):
     errortxt=""
     basepath=os.path.basename(filepath)
+    basepath_repr=basepath.removesuffix(".mp4")
     if args.unique and basepath in session_history:
-        label_currently_playing.configure(text = f"ENFORCING UNIQUE PLAYS, ALREADY PLAYED THIS SESSION:\n{basepath}")
+        label_currently_playing.configure(text = f"ENFORCING UNIQUE PLAYS, ALREADY PLAYED THIS SESSION:\n{basepath_repr}")
         with open(PLAYLIST_FILE, "a") as myfile:
-            myfile.write(f"\"{datetime.today().strftime('%Y%m%dT%H%M%S')}\",\"{picker_filter}\",\"{basepath}\",\"ERROR:NOT UNIQUE\"\n")
+            myfile.write(f"\"{datetime.today().strftime('%Y%m%dT%H%M%S')}\",\"{picker_filter}\",\"{basepath_repr}\",\"ERROR:NOT UNIQUE\"\n")
         return
     try:
-        label_currently_playing.configure(text = "Currently playing:\n" + basepath)
+        label_currently_playing.configure(text = "Currently playing:\n" + basepath_repr)
         window.update()
         # OSX: open: -W = wait until app exits, -n = force new instance, -a iina = use IINA application
         subprocess.check_call(["open", "-W", "-n", "-a", "iina", prefix + filepath])
     except ChildProcessError as err:
-        label_currently_playing.configure(text = f"ERROR PLAYING:\n{basepath}\n{err}")
+        label_currently_playing.configure(text = f"ERROR PLAYING:\n{basepath_repr}\n{err}")
         errortxt=",\"ERROR:"+err+"\""
     else:
-        label_currently_playing.configure(text = "Last played:\n" + basepath)
+        label_currently_playing.configure(text = "Last played:\n" + basepath_repr)
     finally:
         session_history[basepath]=True
         with open(PLAYLIST_FILE, "a") as myfile:
             #logpath=prefix+filepath
             #logpath=logpath[len(KARAOKE_DIR)+1:]
-            myfile.write(f"\"{datetime.today().strftime('%Y%m%dT%H%M%S')}\",\"{picker_filter}\",\"{basepath}\"{errortxt}\n")
+            myfile.write(f"\"{datetime.today().strftime('%Y%m%dT%H%M%S')}\",\"{picker_filter}\",\"{basepath_repr}\"{errortxt}\n")
 
 def pick_random():
-    filepath = random.choice(os.listdir(FLAT_DIR))
-    play_file(filepath, picker_filter="random", prefix=FLAT_DIR)
+    file = random.choice(filetrees['by-title'])
+    play_file(file[1], picker_filter="random", prefix=file[0] + os.sep)
 
 def run_browse_trigger(filter):
     global filtered_filenames, filtered_filenames_list, picker_filter
     picker_filter = f"browse:{filter}"
     filtered_filenames = filetrees[filter]
-    # only display basename of each file path tuple
-    filtered_filenames_list.set([file[1] for file in filtered_filenames])
+    entries=[]
+    if not any(n in filter for n in ["by-title", "by-artist-first", "by-artist-last"]):
+        for file_tuple in filtered_filenames:
+            entries.append(os.path.basename(file_tuple[0]).ljust(maxwidth[filter]) + ": " + file_tuple[1].removesuffix('.mp4'))
+    else:
+        for file_tuple in filtered_filenames:
+            entries.append(file_tuple[1].removesuffix('.mp4'))
+    filtered_filenames_list.set(entries)
 
 def run_search_event(event):
     run_search_trigger()
@@ -126,9 +139,12 @@ def run_search_trigger():
     picker_filter = f"searched_for:{search_term_entry}"
     search_term = f"*{search_term_entry}*.*"
     rematch = fnmatch.translate(search_term)
-    filtered_filenames = [(FLAT_DIR, n) for n in os.listdir(FLAT_DIR) if re.match(rematch, n, re.IGNORECASE)]
+    filtered_filenames = []
+    for file_tuple in filetrees['by-title']:
+        if re.match(rematch, file_tuple[1], re.IGNORECASE):
+            filtered_filenames.append(file_tuple)
     if filtered_filenames:
-        filtered_filenames_list.set([file[1] for file in filtered_filenames])
+        filtered_filenames_list.set([file_tuple[1].removesuffix('.mp4') for file_tuple in filtered_filenames])
     else:
         label_currently_playing.configure(text = "ERROR, COULD NOT FIND:\n" + search_term)
         filtered_filenames_list.set([])
@@ -136,8 +152,10 @@ def run_search_trigger():
 window = Tk()
 filtered_filenames_list=StringVar(value=[])
 search_term_string=StringVar(value="")
-myfont = font.nametofont(KARAOKE_FONT)
-myfont.configure(size=KARAOKE_TEXT_SIZE, weight=font.BOLD)
+defaultfont = font.nametofont(KARAOKE_DEFAULT_FONT)
+defaultfont.configure(size=KARAOKE_DEFAULT_TEXT_SIZE, weight=font.BOLD)
+fixedfont = font.nametofont(KARAOKE_FIXED_FONT)
+fixedfont.configure(size=KARAOKE_DEFAULT_TEXT_SIZE)
 window.title('File Explorer')
 window.geometry("{0}x{1}+10+10".format(
                         window.winfo_screenwidth()-30, window.winfo_screenheight()-100))
@@ -164,7 +182,7 @@ buttons['SURPRISE ME'] = Button(window,
 
 label_search = Label(window,
                      text = "SEARCH:")
-entry_search = Entry(window, textvariable=search_term_string)
+entry_search = Entry(window, textvariable=search_term_string, font=fixedfont)
 entry_search.bind("<Return>", run_search_event)
 
 label_instructions = Label(window,
@@ -174,7 +192,8 @@ picker_label = Label(window,
                      text = "File picker:")
 picker_frame = Frame(window)
 picker = Listbox(picker_frame,
-                 listvariable = filtered_filenames_list)
+                 listvariable = filtered_filenames_list,
+                 font=fixedfont)
 picker.bind("<Double-1>", play_picked_file)
 picker_scrollbar = Scrollbar(picker_frame,
                              orient=VERTICAL,
@@ -193,7 +212,7 @@ buttons['by-artist-last'].grid(column = 1, row = 2, padx = 3, pady = 3)
 buttons['by-genre'].grid(column = 0, row = 3, padx = 3, pady = 3)
 buttons['by-mood'].grid(column = 1, row = 3, padx = 3, pady = 3)
 buttons['by-title'].grid(column = 0, row = 4, padx = 3, pady = 3)
-buttons['flat'].grid(column = 1, row = 4, padx = 3, pady = 3)
+buttons['by-decade'].grid(column = 1, row = 4, padx = 3, pady = 3)
 buttons['SURPRISE ME'].grid(columnspan = 2, row = 5, padx = 3, pady = 3)
 label_search.grid(column = 0, row = 6, padx = 3, pady = 3)
 entry_search.grid(column = 1, row = 6, padx = 3, pady = 3)
