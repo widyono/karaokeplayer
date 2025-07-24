@@ -60,8 +60,14 @@ choices = ['by-artist-first', 'by-artist-last', 'by-decade', 'by-genre', 'by-moo
 filtered_filenames = []
 session_history = {}
 picker_filter = ""
+picker_width = 0
 filetrees = {}
 maxwidth = {}
+
+#def on_picker_resize(event):
+#    global fixedfontwidth
+#    picker.update()
+#    picker_width = picker.winfo_width() // fixedfontwidth
 
 for choice in choices:
     filetrees[choice] = []
@@ -116,8 +122,26 @@ def pick_random():
     file = random.choice(filetrees['by-title'])
     play_file(file[1], picker_filter="random", prefix=file[0] + os.sep)
 
+def fully_justify_picker_entries(entries):
+    global filtered_filenames_list, picker_width
+    fully_justified_entries = []
+    for entry in entries:
+        (lhs, rhs) = re.split(' - ', entry, maxsplit=1)
+        lhs_width = len(lhs)
+        rhs_width = len(rhs)
+        space_width = picker_width - lhs_width - rhs_width
+        if space_width < 2:
+            if lhs_width > picker_width // 2 - 1:
+                lhs_width = picker_width // 2 - 1
+            if rhs_width > picker_width // 2 - 1:
+                rhs_width = picker_width // 2 - 1
+            space_width = picker_width - lhs_width - rhs_width
+        spaces = " " * space_width
+        fully_justified_entries.append(f"  {lhs[0:lhs_width]}{spaces}{rhs[0:rhs_width]}")
+    filtered_filenames_list.set(fully_justified_entries)
+
 def run_browse_trigger(filter):
-    global filtered_filenames, filtered_filenames_list, picker_filter
+    global filtered_filenames, picker_filter
     picker_filter = f"browse:{filter}"
     filtered_filenames = filetrees[filter]
     entries=[]
@@ -127,13 +151,13 @@ def run_browse_trigger(filter):
     else:
         for file_tuple in filtered_filenames:
             entries.append(file_tuple[1].removesuffix('.mp4'))
-    filtered_filenames_list.set(entries)
+    fully_justify_picker_entries(entries)
 
 def run_search_event(event):
     run_search_trigger()
 
 def run_search_trigger():
-    global filtered_filenames, filtered_filenames_list, picker_filter
+    global filtered_filenames, picker_filter
     # TODO: sanitize search_term
     search_term_entry = search_term_string.get()
     picker_filter = f"searched_for:{search_term_entry}"
@@ -144,10 +168,10 @@ def run_search_trigger():
         if re.match(rematch, file_tuple[1], re.IGNORECASE):
             filtered_filenames.append(file_tuple)
     if filtered_filenames:
-        filtered_filenames_list.set([file_tuple[1].removesuffix('.mp4') for file_tuple in filtered_filenames])
+        fully_justify_picker_entries([file_tuple[1].removesuffix('.mp4') for file_tuple in filtered_filenames])
     else:
         label_currently_playing.configure(text = "ERROR, COULD NOT FIND:\n" + search_term)
-        filtered_filenames_list.set([])
+        fully_justify_picker_entries([])
 
 window = Tk()
 filtered_filenames_list=StringVar(value=[])
@@ -156,6 +180,7 @@ defaultfont = font.nametofont(KARAOKE_DEFAULT_FONT)
 defaultfont.configure(size=KARAOKE_DEFAULT_TEXT_SIZE, weight=font.BOLD)
 fixedfont = font.nametofont(KARAOKE_FIXED_FONT)
 fixedfont.configure(size=KARAOKE_DEFAULT_TEXT_SIZE)
+fixedfontwidth = fixedfont.measure("m")
 window.title('File Explorer')
 window.geometry("{0}x{1}+10+10".format(
                         window.winfo_screenwidth()-30, window.winfo_screenheight()-100))
@@ -195,6 +220,7 @@ picker = Listbox(picker_frame,
                  listvariable = filtered_filenames_list,
                  font=fixedfont)
 picker.bind("<Double-1>", play_picked_file)
+#picker.bind("<Configure>", on_picker_resize)
 picker_scrollbar = Scrollbar(picker_frame,
                              orient=VERTICAL,
                              command=picker.yview)
@@ -224,6 +250,8 @@ picker.grid(column = 0, row = 0, padx = 3, pady = 3, sticky = "nesw")
 picker_scrollbar.grid(column = 1, row = 0, padx = 3, pady = 3, sticky = "ns")
 button_exit.grid(columnspan = 2, row = 9, padx = 3, pady = 3)
 label_instructions.grid(columnspan = 2, row = 10, sticky = "nesw")
+picker.update()
+picker_width = picker.winfo_width() // fixedfontwidth
 
 if args.searchterm:
     search_term_string.set(args.searchterm)
