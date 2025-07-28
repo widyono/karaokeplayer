@@ -48,7 +48,7 @@ for varname in ["KARAOKE_DIR", "KARAOKE_DEFAULT_FONT", "KARAOKE_DEFAULT_TEXT_SIZ
 if args.directory:
     KARAOKE_DIR=args.directory
 TITLE_DIR=KARAOKE_DIR+"/by-title/"
-PLAYLIST_FILE="./playlist.txt"
+PLAYLIST_FILE=f"{os.path.expanduser('~')}/karaoke_playlist.txt"
 
 # TODO:
 # * index by-decade, by-genre, and by-mood top level directories
