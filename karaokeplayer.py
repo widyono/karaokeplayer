@@ -21,7 +21,7 @@
 #   by-title/[:title_initial:]/symlinks_into_all        (symlink named Title - First Last)
 #   lyrics/[:first_character:]/original_filename_text_lyrics
 
-from tkinter import Tk, filedialog, font, VERTICAL, StringVar, Scrollbar, Listbox, Frame, Label, Entry, Button
+from tkinter import Tk, filedialog, font, VERTICAL, END, StringVar, Scrollbar, Listbox, Frame, Label, Entry, Button
 from functools import partial
 import sys
 import subprocess
@@ -140,6 +140,8 @@ def fully_justify_picker_entries(entries):
         spaces = " " * space_width
         fully_justified_entries.append(f"  {lhs[0:lhs_width]}{spaces}{rhs[0:rhs_width]}")
     filtered_filenames_list.set(fully_justified_entries)
+    picker.selection_clear(0, END)
+    picker.see(0)
 
 def run_browse_trigger(filter):
     global filtered_filenames, picker_filter
