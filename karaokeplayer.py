@@ -47,6 +47,7 @@ for varname in ["KARAOKE_DIR", "KARAOKE_DEFAULT_FONT", "KARAOKE_DEFAULT_TEXT_SIZ
         globals()[varname] = os.environ.get(varname)
 if args.directory:
     KARAOKE_DIR=args.directory
+KARAOKE_DIR=KARAOKE_DIR.split(',')[0]
 TITLE_DIR=KARAOKE_DIR+"/by-title/"
 PLAYLIST_FILE=f"{os.path.expanduser('~')}/karaoke_playlist.txt"
 
