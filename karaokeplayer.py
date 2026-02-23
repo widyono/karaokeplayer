@@ -2,20 +2,19 @@
 ''':'
 find_best_python ()
 {
-    # regardless of algorithm, we are purposely ignoring Python 3.7 and 3.10
-    #   YMMV
+    # regardless of algorithm, we are purposely ignoring Python 3.7 and 3.10; YMMV
     #
     # prioritize "most used" Python distribution on system with
     #   multiple versions installed side by side (determined by
     #   whichever has the most site packages installed)
-    most_packages="$(ls -d /usr/lib/python3.{14,13,12,11,9,8,6}/site-packages/* /usr/lib/python2.{7,6}/site-packages/* /opt/local/Library/Frameworks/Python.framework/Versions/3.{14,13,12,11,9,8,6} /opt/local/Library/Frameworks/Python.framework/Versions/2.{7,6}/site-packages/* 2>/dev/null|awk -F/ '{print $4}'|uniq -c|sort -nr|head -1|awk '{print $2}')"
+    most_packages="$(ls -d /usr/lib/python3.{14,13,12,11,9,8,6}/site-packages/* /usr/lib/python2.7/site-packages/* /opt/local/Library/Frameworks/Python.framework/Versions/3.{14,13,12,11,9,8,6} /opt/local/Library/Frameworks/Python.framework/Versions/2.7/site-packages/* 2>/dev/null|awk -F/ '{print $4}'|uniq -c|sort -nr|head -1|awk '{print $2}')"
     if "$most_packages" -c '' 2>/dev/null; then
         echo "$most_packages"
         return
     fi
     # if for some reason we cannot identify "most used" version,
     #   simply pick the most modern binary actually installed
-    for highest_installed in python3.14 python3.13 python3.12 python3.11 python3.9 python3.8 python3.6 python2.7 python2.6 ; do
+    for highest_installed in python3.14 python3.13 python3.12 python3.11 python3.9 python3.8 python3.6 python2.7 ; do
         if "$highest_installed" -c '' 2>/dev/null; then
             echo "$highest_installed"
             return
