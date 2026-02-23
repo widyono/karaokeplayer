@@ -1,4 +1,34 @@
-#!/usr/bin/env python3
+#! /bin/sh -
+''':'
+find_best_python ()
+{
+    # regardless of algorithm, we are purposely ignoring Python 3.7 and 3.10
+    #   YMMV
+    #
+    # prioritize "most used" Python distribution on system with
+    #   multiple versions installed side by side (determined by
+    #   whichever has the most site packages installed)
+    most_packages="$(ls -d /usr/lib/python3.{14,13,12,11,9,8,6}/site-packages/* /usr/lib/python2.{7,6}/site-packages/* /opt/local/Library/Frameworks/Python.framework/Versions/3.{14,13,12,11,9,8,6} /opt/local/Library/Frameworks/Python.framework/Versions/2.{7,6}/site-packages/* 2>/dev/null|awk -F/ '{print $4}'|uniq -c|sort -nr|head -1|awk '{print $2}')"
+    if "$most_packages" -c '' 2>/dev/null; then
+        echo "$most_packages"
+        return
+    fi
+    # if for some reason we cannot identify "most used" version,
+    #   simply pick the most modern binary actually installed
+    for highest_installed in python3.14 python3.13 python3.12 python3.11 python3.9 python3.8 python3.6 python2.7 python2.6 ; do
+        if "$highest_installed" -c '' 2>/dev/null; then
+            echo "$highest_installed"
+            return
+        fi
+    done
+    echo >&2 "Can't find appropriate Python interpreter"
+    false
+}
+interpreter="$(find_best_python)" || exit
+exec "$interpreter" "$0" "$@"
+'''
+
+
 
 # karaokeplayer.py
 #
@@ -49,7 +79,7 @@ if args.directory:
     KARAOKE_DIR=args.directory
 KARAOKE_DIR=KARAOKE_DIR.split(',')[0]
 TITLE_DIR=KARAOKE_DIR+"/by-title/"
-PLAYLIST_FILE=f"{os.path.expanduser('~')}/karaoke_playlist.txt"
+PLAYLIST_FILE="{}/karaoke_playlist.txt".format(os.path.expanduser('~'))
 
 # TODO:
 # * index by-decade, by-genre, and by-mood top level directories
@@ -72,7 +102,7 @@ maxwidth = {}
 
 for choice in choices:
     filetrees[choice] = []
-    for root, dirs, files in os.walk(f"{KARAOKE_DIR}/{choice}"):
+    for root, dirs, files in os.walk("{}/{}".format(KARAOKE_DIR,choice)):
         dirs.sort()
         if not any(n in choice for n in ["by-title", "by-artist-first", "by-artist-last"]):
             if not choice in maxwidth:
@@ -84,6 +114,9 @@ for choice in choices:
             if file[0] == '.':
                 continue
             filetrees[choice].append((root,file))
+
+def get_timestamp():
+    return datetime.today().strftime('%Y%m%dT%H%M%S')
 
 def play_picked_file(*args):
     indexes = picker.curselection()
@@ -98,9 +131,9 @@ def play_file(filepath, prefix="", picker_filter=""):
     basepath=os.path.basename(filepath)
     basepath_repr=basepath.removesuffix(".mp4")
     if args.unique and basepath in session_history:
-        label_currently_playing.configure(text = f"ENFORCING UNIQUE PLAYS, ALREADY PLAYED THIS SESSION:\n{basepath_repr}")
+        label_currently_playing.configure(text = "ENFORCING UNIQUE PLAYS, ALREADY PLAYED THIS SESSION:\n{}".format(basepath_repr))
         with open(PLAYLIST_FILE, "a") as myfile:
-            myfile.write(f"\"{datetime.today().strftime('%Y%m%dT%H%M%S')}\",\"{picker_filter}\",\"{basepath_repr}\",\"ERROR:NOT UNIQUE\"\n")
+            myfile.write("\"{}\",\"{}\",\"{}\",\"ERROR:NOT UNIQUE\"\n".format(get_timestamp(),picker_filter,basepath_repr))
         return
     try:
         label_currently_playing.configure(text = "Currently playing:\n" + basepath_repr)
@@ -108,7 +141,7 @@ def play_file(filepath, prefix="", picker_filter=""):
         # OSX: open: -W = wait until app exits, -n = force new instance, -a iina = use IINA application
         subprocess.check_call(["open", "-W", "-n", "-a", "iina", prefix + filepath])
     except ChildProcessError as err:
-        label_currently_playing.configure(text = f"ERROR PLAYING:\n{basepath_repr}\n{err}")
+        label_currently_playing.configure(text = "ERROR PLAYING:\n{}\n{}".format(basepath_repr,err))
         errortxt=",\"ERROR:"+err+"\""
     else:
         label_currently_playing.configure(text = "Last played:\n" + basepath_repr)
@@ -117,7 +150,7 @@ def play_file(filepath, prefix="", picker_filter=""):
         with open(PLAYLIST_FILE, "a") as myfile:
             #logpath=prefix+filepath
             #logpath=logpath[len(KARAOKE_DIR)+1:]
-            myfile.write(f"\"{datetime.today().strftime('%Y%m%dT%H%M%S')}\",\"{picker_filter}\",\"{basepath_repr}\"{errortxt}\n")
+            myfile.write("\"{}\",\"{}\",\"{}\"{}\n".format(get_timestamp(),picker_filter,basepath_repr,errortxt))
 
 def pick_random():
     file = random.choice(filetrees['by-title'])
@@ -138,14 +171,14 @@ def fully_justify_picker_entries(entries):
                 rhs_width = picker_width // 2 - 1
             space_width = picker_width - lhs_width - rhs_width
         spaces = " " * space_width
-        fully_justified_entries.append(f"  {lhs[0:lhs_width]}{spaces}{rhs[0:rhs_width]}")
+        fully_justified_entries.append("  {}{}{}".format(lhs[0:lhs_width],spaces,rhs[0:rhs_width]))
     filtered_filenames_list.set(fully_justified_entries)
     picker.selection_clear(0, END)
     picker.see(0)
 
 def run_browse_trigger(filter):
     global filtered_filenames, picker_filter
-    picker_filter = f"browse:{filter}"
+    picker_filter = "browse:{}".format(filter)
     filtered_filenames = filetrees[filter]
     entries=[]
     if not any(n in filter for n in ["by-title", "by-artist-first", "by-artist-last"]):
@@ -163,8 +196,8 @@ def run_search_trigger():
     global filtered_filenames, picker_filter
     # TODO: sanitize search_term
     search_term_entry = search_term_string.get()
-    picker_filter = f"searched_for:{search_term_entry}"
-    search_term = f"*{search_term_entry}*.*"
+    picker_filter = "searched_for:{}".format(search_term_entry)
+    search_term = "*{}*.*".format(search_term_entry)
     rematch = fnmatch.translate(search_term)
     filtered_filenames = []
     for file_tuple in filetrees['by-title']:
@@ -197,7 +230,7 @@ label_currently_playing = Label(window,
 buttons={}
 for choice in choices:
     buttons[choice] = Button(window,
-                             text = f"Browse {choice}",
+                             text = "Browse {}".format(choice),
                              command = partial(run_browse_trigger, choice)) 
 
 button_exit = Button(window,
@@ -261,7 +294,7 @@ if args.searchterm:
     run_search_trigger()
 
 with open(PLAYLIST_FILE, "a") as myfile:
-    myfile.write(f"===================================NEW=SESSION=\"{datetime.today().strftime('%Y%m%dT%H%M%S')}\"\n")
+    myfile.write("===================================NEW=SESSION=\"{}\"\n".format(get_timestamp()))
 
 #
 # MAIN LOOP
