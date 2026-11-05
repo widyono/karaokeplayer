@@ -31,6 +31,7 @@ import re
 import random
 from datetime import datetime
 import argparse
+import shutil
 
 parser = argparse.ArgumentParser(description="KARAOKE PLAYER")
 parser.add_argument("-d","--directory", help="Directory containing Karaoke video structure")
@@ -42,9 +43,28 @@ KARAOKE_DIR=os.path.dirname(sys.argv[0])
 KARAOKE_DEFAULT_FONT="TkDefaultFont"
 KARAOKE_FIXED_FONT="TkFixedFont"
 KARAOKE_DEFAULT_TEXT_SIZE=32
-for varname in ["KARAOKE_DIR", "KARAOKE_DEFAULT_FONT", "KARAOKE_DEFAULT_TEXT_SIZE"]:
+KARAOKE_KEY_FULLSCREEN="F"
+if shutil.which("cvlc"):
+    # -f = fullscreen
+    KARAOKE_BIN_ARGS=["cvlc", "-f"]
+    KARAOKE_KEY_QUIT="Ctrl-Q"
+else:
+    # -W = wait until app exits, -n = force new instance, -a iina = use IINA application
+    KARAOKE_BIN_ARGS=["open", "-W", "-n", "-a", "iina"]
+    KARAOKE_KEY_QUIT="Q"
+for varname in [
+        "KARAOKE_DIR",
+        "KARAOKE_DEFAULT_FONT",
+        "KARAOKE_DEFAULT_TEXT_SIZE",
+        "KARAOKE_BIN_ARGS",
+        "KARAOKE_KEY_QUIT",
+        "KARAOKE_KEY_FULLSCREEN"
+        ]:
     if os.environ.get(varname):
-        globals()[varname] = os.environ.get(varname)
+        if varname == "KARAOKE_BIN_ARGS":
+            globals()[varname] = os.environ.get(varname).split()
+        else:
+            globals()[varname] = os.environ.get(varname)
 if args.directory:
     KARAOKE_DIR=args.directory
 KARAOKE_DIR=KARAOKE_DIR.split(',')[0]
@@ -105,8 +125,7 @@ def play_file(filepath, prefix="", picker_filter=""):
     try:
         label_currently_playing.configure(text = "Currently playing:\n" + basepath_repr)
         window.update()
-        # OSX: open: -W = wait until app exits, -n = force new instance, -a iina = use IINA application
-        subprocess.check_call(["open", "-W", "-n", "-a", "iina", prefix + filepath])
+        subprocess.check_call(KARAOKE_BIN_ARGS + [prefix + filepath])
     except ChildProcessError as err:
         label_currently_playing.configure(text = f"ERROR PLAYING:\n{basepath_repr}\n{err}")
         errortxt=",\"ERROR:"+err+"\""
@@ -214,7 +233,7 @@ entry_search = Entry(window, textvariable=search_term_string, font=fixedfont)
 entry_search.bind("<Return>", run_search_event)
 
 label_instructions = Label(window,
-                           text = "When video plays, press F for Full Screen, and Q to quit")
+                           text = f"When video plays, press {KARAOKE_KEY_FULLSCREEN} for Full Screen, and {KARAOKE_KEY_QUIT} to quit")
 
 picker_label = Label(window,
                      text = "File picker:")
