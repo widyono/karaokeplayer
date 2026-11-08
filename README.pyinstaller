@@ -1,0 +1,6 @@
+update karaokeplayer.spec to include:
+
+pathex=['path/to/required/modules', 'path/to/site-packages'],
+hiddenimports=['tkinter'],
+
+~/.venv/pandas/bin/pyinstaller --noconfirm karaokeplayer.spec
