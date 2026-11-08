@@ -265,7 +265,8 @@ entry_search = Entry(window, textvariable=search_term_string, font=fixedfont)
 entry_search.bind("<Return>", run_search_event)
 
 label_instructions = Label(window,
-                           text = f"When video plays, press {KARAOKE_KEY_FULLSCREEN} for Full Screen, and {KARAOKE_KEY_QUIT} to quit")
+                           text = "When video plays, press {} for Full Screen, and {} to quit".format(
+                               KARAOKE_KEY_FULLSCREEN, KARAOKE_KEY_QUIT))
 
 picker_label = Label(window,
                      text = "File picker:")
